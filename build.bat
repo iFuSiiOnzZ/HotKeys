@@ -20,11 +20,11 @@ DEL /Q %PDBFiles%*.Exe 2>NUL
 DEL /Q %PDBFiles%*.ilk 2>NUL
 
 :: Compiler flags
-SET CommonCompilerFlags= /nologo /Od /Z7 /Fd%PDBFiles% /Fo%IntermediatePath% /Fe%ExePath%
+SET CommonCompilerFlags= /nologo /Od /Z7 /W4 /Fd%PDBFiles% /Fo%IntermediatePath% /Fe%ExePath%
 SET Defines=-DX64
 
 :: Linker flags
-SET CommonLinkerFlags= User32.lib
+SET CommonLinkerFlags= User32.lib Shell32.lib
 
 :: Compile
 call cl %CommonCompilerFlags% %Defines% main.cpp /link %CommonLinkerFlags%
