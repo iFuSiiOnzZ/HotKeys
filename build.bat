@@ -27,4 +27,4 @@ SET Defines=-DX64
 SET CommonLinkerFlags= User32.lib Shell32.lib
 
 :: Compile
-call cl %CommonCompilerFlags% %Defines% main.cpp /link %CommonLinkerFlags%
+call cl %CommonCompilerFlags% %Defines% unitybuild.cpp /link %CommonLinkerFlags%
