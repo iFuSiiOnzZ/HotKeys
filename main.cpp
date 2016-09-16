@@ -12,11 +12,6 @@
 // https://msdn.microsoft.com/en-us/library/ms644985(v=vs.85).aspx                      LowLevelKeyboardProc
 // https://msdn.microsoft.com/es-es/library/windows/desktop/ms644967(v=vs.85).aspx      KBDLLHOOKSTRUCT
 
-// https://msdn.microsoft.com/en-us/library/windows/desktop/ms646300(v=vs.85).aspx      GetKeyNameTextA
-// https://msdn.microsoft.com/es-es/library/windows/desktop/dd375731(v=vs.85).aspx      Virual Keys
-
-// https://msdn.microsoft.com/en-us/library/bb762181(VS.85).aspx                        User Folder data
-// https://msdn.microsoft.com/en-us/library/bb762494(v=vs.85).aspx                      CSIDL
 
 #define CLASS_NAME "KeyboardHook"
 #define WINDOW_NAME "KeyboardHook"
@@ -25,10 +20,6 @@
 
 static int  g_KbdHookExit = 0;                    /* Exit app controll */
 static JS_NODE *g_pRootNode = 0;                   /* Json hot keys bindings */
-
-static char g_LogFilePath[MAX_PATH] = { 0 };      /* Logging user actions, for testing */
-static char g_UserProgramDir[MAX_PATH] = { 0 };   /* Program directory where files go <User>\\Documents\\HotKeys */
-static char g_HotKeysFilePath[MAX_PATH] = { 0 };  /* Config file that contains the hot keys user definition and their action */
 
 LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
 {
@@ -43,7 +34,6 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
             char pHotKeysTemp[32] = { 0 };
 
             char *pAppPath = json_value(g_pRootNode, "root.path", pArrays, 1);
-            char *pAppName = json_value(g_pRootNode, "root.name", pArrays, 1);
             char *pHotKeys = json_value(g_pRootNode, "root.hotkeys", pArrays, 1);
 
             for(int j = 0; j < 31 && pHotKeys[j]; ++j)
@@ -84,14 +74,12 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
                 if(CreateProcessA(pAppPath, NULL, NULL, NULL, FALSE, CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi))
                 {
                     CloseHandle(pi.hProcess); CloseHandle(pi.hThread);
-                    LogToFile(pAppName, g_LogFilePath);
                 }
             }
         }
 
         if(KeyboardData->vkCode == 'E' && (GetAsyncKeyState(VK_CONTROL) & GetAsyncKeyState(VK_MENU) & 0x8000))
         {
-            LogToFile("Ending HotKeys application", g_LogFilePath);
             g_KbdHookExit = 1;
         }
     }
@@ -157,33 +145,15 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
     UpdateWindow(hWnd);
 
     HHOOK KbdHook = SetWindowsHookExA(WH_KEYBOARD_LL, (HOOKPROC)LowLevelKeyboardProc, hActualInst, NULL);
-    char *pFileContent = 0;
     MSG hMsg = { 0 };
 
-    if(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, NULL, 0, g_UserProgramDir) != S_OK)
-    {
-        OutputDebugStringA("[ERROR] Can't get user profile directory");
-    }
+    char *pFileContent = LoadStringFileIntoMemory("hotkeys.json");
+    JS_TOKENIZER Tokenizer = { pFileContent };
 
-    if(g_UserProgramDir[0])
-    {
-        strcat_s(g_UserProgramDir, "\\HotKeys");
-        CreateDirectoryA(g_UserProgramDir, NULL);
+    g_pRootNode = json_root();
+    json_parser(g_pRootNode, &Tokenizer);
 
-        strcat_s(g_LogFilePath, g_UserProgramDir);
-        strcat_s(g_LogFilePath, "\\log.txt");
-
-        strcat_s(g_HotKeysFilePath, g_UserProgramDir);
-        strcat_s(g_HotKeysFilePath, "\\hotkeys.json");
-
-        pFileContent = LoadStringFileIntoMemory(g_HotKeysFilePath);
-        JS_TOKENIZER Tokenizer = { pFileContent };
-
-        g_pRootNode = json_root();
-        json_parser(g_pRootNode, &Tokenizer);
-
-        json_sanitize(g_pRootNode);
-    }
+    json_sanitize(g_pRootNode);
 
     while(!g_KbdHookExit)
     { 
