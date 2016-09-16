@@ -1,4 +1,4 @@
-#include "js_reader.h"
+#include <js_reader.h>
 #include <stdlib.h>
 
 #define cast(type, data) (type)(data)
@@ -350,7 +350,7 @@ JS_NODE * json_root()
     return pRootNode;
 }
 
-int strcmp(const char* s1, const char* s2)
+int mystrcmp(const char* s1, const char* s2)
 {
     while(*s1 && (*s1 == *s2)) s1++, s2++;
     return *(const unsigned char *) s1 - *(const unsigned char *) s2;
@@ -358,7 +358,7 @@ int strcmp(const char* s1, const char* s2)
 
 JS_NODE * json_find_sibling(JS_NODE *pNode, char *pQuery)
 {
-    while(pNode && strcmp(pQuery, pNode->Name))
+    while(pNode && mystrcmp(pQuery, pNode->Name))
     {
         pNode = pNode->Sibling;
     }

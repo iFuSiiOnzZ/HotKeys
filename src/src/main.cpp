@@ -4,9 +4,8 @@
 
 #include <string.h>  /* strcat_s, strlen, strtok_s*/
 
-
-#include "js_reader.h" /* JS_NODE, JS_TOKENIZER, json_root, json_parser, json_sanitize, json_clear */
-#include "utils.h"     /* LoadStringFileIntoMemory, LogToFile */
+#include <js_reader.h> /* JS_NODE, JS_TOKENIZER, json_root, json_parser, json_sanitize, json_clear */
+#include <utils.h>     /* LoadStringFileIntoMemory, LogToFile */
 
 // https://msdn.microsoft.com/en-us/library/ms644990(VS.85).aspx                        WH_KEYBOARD_DL
 // https://msdn.microsoft.com/en-us/library/ms644985(v=vs.85).aspx                      LowLevelKeyboardProc

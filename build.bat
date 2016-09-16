@@ -19,12 +19,16 @@ DEL /Q %PDBFiles%*.pdb 2>NUL
 DEL /Q %PDBFiles%*.Exe 2>NUL
 DEL /Q %PDBFiles%*.ilk 2>NUL
 
+:: Resource files
+SET ResourceName=%IntermediatePath%resource.res
+rc /nologo /fo %ResourceName% res\resource.rc
+
 :: Compiler flags
-SET CommonCompilerFlags= /nologo /Od /Z7 /W4 /Fd%PDBFiles% /Fo%IntermediatePath% /Fe%ExePath%
+SET CommonCompilerFlags= /nologo /Od /Z7 /W4 /Fd%PDBFiles% /Fo%IntermediatePath% /Fe%ExePath% /Isrc\headers
 SET Defines=-DX64
 
 :: Linker flags
 SET CommonLinkerFlags= User32.lib Shell32.lib
 
 :: Compile
-call cl %CommonCompilerFlags% %Defines% unitybuild.cpp /link %CommonLinkerFlags%
+call cl %CommonCompilerFlags% %Defines% build.cpp /link %CommonLinkerFlags% %ResourceName%
