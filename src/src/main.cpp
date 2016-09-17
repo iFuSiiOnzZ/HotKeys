@@ -18,9 +18,10 @@
 #define TRY_ICON_ID 1024
 #define UNUSED(x) (void)(x)
 
-static HMENU g_hTrayWnd = 0;        /* Tray menu */
-static int g_KbdHookExit    = 0;    /* Exit app controll */
-static JS_NODE *g_pRootNode = 0;    /* Json hot keys bindings */
+static HMENU g_hTrayWnd     =     0; /* Tray menu window */
+static int g_KbdHookExit    =     0; /* Exit app controll */
+static JS_NODE *g_pRootNode =     0; /* Json hot keys bindings */
+static FILETIME g_FileWrite = { 0 }; /* Last time file was write */
 
 void AddMenu(HMENU hMenu, int Id, char *WndText)
 {
@@ -39,7 +40,7 @@ void AddMenu(HMENU hMenu, int Id, char *WndText)
 
 LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
 {
-    if (action == HC_ACTION && (wp == WM_SYSKEYDOWN || wp == WM_KEYDOWN))
+    if (action == HC_ACTION && (wp == WM_SYSKEYDOWN || wp == WM_KEYDOWN) && g_pRootNode)
     {
         KBDLLHOOKSTRUCT *KeyboardData = (KBDLLHOOKSTRUCT *)lp;
         int js = json_size(g_pRootNode, "root");
@@ -133,6 +134,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wp, LPARAM lp)
     return DefWindowProcA(hWnd, Msg, wp, lp);
 }
 
+FILETIME GetLastWriteTime(char *pFileName)
+{
+    FILETIME LastWriteTime = {};
+    WIN32_FILE_ATTRIBUTE_DATA Data = { 0 };
+
+    if(GetFileAttributesEx(pFileName, GetFileExInfoStandard, &Data))
+    {
+        LastWriteTime = Data.ftLastWriteTime;
+    }
+
+    return LastWriteTime;
+}
+
 void ShowError(char *pUserMessage)
 {
     char s[256] = { 0 };
@@ -155,6 +169,37 @@ void EnableTrayIcon(NOTIFYICONDATA *pTrayIcon, HWND hWnd, int ID)
 void DisableTrayIcon(NOTIFYICONDATA *pTrayIcon)
 {
     Shell_NotifyIcon(NIM_DELETE, pTrayIcon);
+}
+
+unsigned long __stdcall HotReload(void *)
+{
+    char *pFileContent = NULL;
+
+    while(!g_KbdHookExit)
+    {
+        Sleep(500); // NOTE(Andrei): Don't waste CPU time
+        FILETIME LastWrite = GetLastWriteTime("hotkeys.json");
+
+        if(CompareFileTime(&LastWrite, &g_FileWrite) != 0)
+        {
+            if(g_pRootNode) json_clear(g_pRootNode), g_pRootNode = NULL;
+            if(pFileContent) free(pFileContent), pFileContent = NULL;
+            
+            g_FileWrite = LastWrite;
+            g_pRootNode = json_root();
+
+            pFileContent = LoadStringFileIntoMemory("hotkeys.json");
+            JS_TOKENIZER Tokenizer = { pFileContent };
+
+            json_parser(g_pRootNode, &Tokenizer);
+            json_sanitize(g_pRootNode);
+        }
+    }
+
+    if(pFileContent) free(pFileContent);
+    if(g_pRootNode) json_clear(g_pRootNode);
+
+    return 0;
 }
 
 int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cmdShow)
@@ -200,19 +245,16 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
     HHOOK KbdHook = SetWindowsHookExA(WH_KEYBOARD_LL, (HOOKPROC)LowLevelKeyboardProc, hActualInst, NULL);
     MSG hMsg = { 0 };
 
-    char *pFileContent = LoadStringFileIntoMemory("hotkeys.json");
-    JS_TOKENIZER Tokenizer = { pFileContent };
-
-    g_pRootNode = json_root();
-    json_parser(g_pRootNode, &Tokenizer);
-    json_sanitize(g_pRootNode);
-
     NOTIFYICONDATA TrayIcon = { 0 };
     EnableTrayIcon(&TrayIcon, hWnd, TRY_ICON_ID);
 
+    // NOTE(Andrei): hotkeys hot reload
+    HANDLE hThread = CreateThread(NULL, 0, HotReload, NULL, 0, 0);
+    CloseHandle(hThread);
+
     while(!g_KbdHookExit)
     { 
-        while(PeekMessage(&hMsg, NULL, 0U, 0U, PM_REMOVE))
+        while(PeekMessage(&hMsg, NULL, 0U, 0U, PM_REMOVE) > 0)
         {
             TranslateMessage(&hMsg);
             DispatchMessageA(&hMsg);
@@ -223,9 +265,6 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
     }
 
     DisableTrayIcon(&TrayIcon);
-
-    if(pFileContent) free(pFileContent);
-    if(g_pRootNode) json_clear(g_pRootNode);
 
     DestroyWindow(hWnd);
     UnhookWindowsHookEx(KbdHook);
