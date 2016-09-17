@@ -1,10 +1,10 @@
 # HotKeys
 
-Keys that can be bind:
-    Special Keys: CTRL, ALT
-    Normal Keys: A - Z
+Keys that can be bind <br />
+    Special Keys: CTRL, ALT, SHIFT  <br />
+    Normal Keys: A - Z  <br />
 
-Normal keys have to be uppercase always. HotKeys are configured through a json (hotkeys.json) file that has to be in the same directory as the application. 
+Normal keys have to be uppercase always. HotKeys are configured through a json file (hotkeys.json) that has to be in the same directory as the application.
 
 ## hotkeys.json
 ```
@@ -12,12 +12,16 @@ Normal keys have to be uppercase always. HotKeys are configured through a json (
     {
         "name" : "Windows console (cmd.exe)",
         "hotkeys" : "CTRL+ALT+T",
-        "path" : "c:\\windows\\system32\\cmd.exe"
+
+        "path" : "c:\\windows\\system32\\cmd.exe",
+        "startin" : "c:\\windows\\system32"
     },
     {
         "name" : "Sublimete Text 3",
         "hotkeys" : "CTRL+ALT+S",
-        "path" : "C:\\Program Files\\Sublime Text 3\\sublime_text.exe"
+
+        "path" : "C:\\Program Files\\Sublime Text 3\\sublime_text.exe",
+        "startin" : "c:\\windows\\system32"
     }
 ]
 ```
