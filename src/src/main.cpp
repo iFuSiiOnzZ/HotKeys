@@ -19,7 +19,7 @@
 #define UNUSED(x) (void)(x)
 
 static HMENU g_hTrayWnd = 0;        /* Tray menu */
-static int  g_KbdHookExit = 0;      /* Exit app controll */
+static int g_KbdHookExit    = 0;    /* Exit app controll */
 static JS_NODE *g_pRootNode = 0;    /* Json hot keys bindings */
 
 void AddMenu(HMENU hMenu, int Id, char *WndText)
@@ -100,7 +100,6 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wp, LPARAM lp)
 {
-
     if(Msg == WM_CREATE)
     {
         g_hTrayWnd = CreatePopupMenu();
@@ -129,33 +128,52 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wp, LPARAM lp)
     return DefWindowProcA(hWnd, Msg, wp, lp);
 }
 
+void ShowError(char *pUserMessage)
+{
+    char s[256] = { 0 };
+    sprintf_s(s, "Error: %d", GetLastError());
+    MessageBoxA(NULL, pUserMessage, s, MB_ICONEXCLAMATION | MB_OK);
+}
+
+void EnableTrayIcon(NOTIFYICONDATA *pTrayIcon, HWND hWnd, int ID)
+{
+    pTrayIcon->hWnd = hWnd;
+    pTrayIcon->uCallbackMessage = ID;
+
+    pTrayIcon->cbSize = sizeof(NOTIFYICONDATA);
+    pTrayIcon->uFlags = NIF_MESSAGE | NIF_ICON;
+
+    pTrayIcon->hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(100));
+    Shell_NotifyIcon(NIM_ADD, pTrayIcon);
+}
+
+void DisableTrayIcon(NOTIFYICONDATA *pTrayIcon)
+{
+    Shell_NotifyIcon(NIM_DELETE, pTrayIcon);
+}
+
 int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cmdShow)
 {
     UNUSED(hPrevInst);
     UNUSED(cmdLine);
     UNUSED(cmdShow);
 
-    WNDCLASSEXA wndCls = { 0 };
+    WNDCLASSEXA WndCls = { 0 };
 
-    wndCls.cbSize           = sizeof(WNDCLASSEXA);
-    wndCls.cbClsExtra       = 0;
-    wndCls.cbWndExtra       = 0;
+    WndCls.hInstance        = hActualInst;
+    WndCls.hCursor          = LoadCursor(NULL, IDC_ARROW);
+    WndCls.hIconSm          = LoadIcon(NULL, IDI_APPLICATION);
+    WndCls.hIcon            = LoadIcon(NULL, IDI_APPLICATION);
 
-    wndCls.hInstance        = hActualInst;
-    wndCls.hCursor          = LoadCursor(NULL, IDC_ARROW);
-    wndCls.hIconSm          = LoadIcon(NULL, IDI_APPLICATION);
-    wndCls.hIcon            = LoadIcon(NULL, IDI_APPLICATION);
+    WndCls.lpfnWndProc      = WndProc;
+    WndCls.lpszClassName    = CLASS_NAME;
 
-    wndCls.lpfnWndProc      = WndProc;
-    wndCls.lpszMenuName     = NULL;
-    wndCls.lpszClassName    = CLASS_NAME;
+    WndCls.cbSize           = sizeof(WNDCLASSEXA);
+    WndCls.hbrBackground    = (HBRUSH) (COLOR_WINDOW + 1);
 
-    wndCls.style            = 0;
-    wndCls.hbrBackground    = (HBRUSH) (COLOR_WINDOW + 1);
-
-    if(RegisterClassExA(&wndCls) == 0)
+    if(RegisterClassExA(&WndCls) == 0)
     {
-        MessageBoxA(NULL, "Window Registration Failed", "Error", MB_ICONEXCLAMATION | MB_OK);
+        ShowError("Window Registration Failed");
         return 1;
     }
 
@@ -167,7 +185,7 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
 
     if(hWnd == NULL)
     {
-        MessageBoxA(NULL, "Window Creation Failed", "Error", MB_ICONEXCLAMATION | MB_OK);
+        ShowError("Window Creation Failed");
         return 1;
     }
 
@@ -184,15 +202,8 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
     json_parser(g_pRootNode, &Tokenizer);
     json_sanitize(g_pRootNode);
 
-
     NOTIFYICONDATA TrayIcon = { 0 };
-    TrayIcon.hWnd = hWnd;
-    TrayIcon.uCallbackMessage = TRY_ICON_ID;
-    TrayIcon.cbSize = sizeof(NOTIFYICONDATA);
-    TrayIcon.uFlags = NIF_MESSAGE | NIF_ICON;
-    TrayIcon.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(100));
-
-    Shell_NotifyIcon(NIM_ADD, &TrayIcon);
+    EnableTrayIcon(&TrayIcon, hWnd, TRY_ICON_ID);
 
     while(!g_KbdHookExit)
     { 
@@ -206,11 +217,12 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
         Sleep(20);
     }
 
-    Shell_NotifyIcon(NIM_DELETE, &TrayIcon);
+    DisableTrayIcon(&TrayIcon);
 
-    if(g_pRootNode) json_clear(g_pRootNode);
     if(pFileContent) free(pFileContent);
+    if(g_pRootNode) json_clear(g_pRootNode);
 
+    DestroyWindow(hWnd);
     UnhookWindowsHookEx(KbdHook);
     UnregisterClass(CLASS_NAME, hActualInst);
 
