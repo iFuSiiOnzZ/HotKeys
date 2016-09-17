@@ -51,6 +51,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
 
             char *pAppPath = json_value(g_pRootNode, "root.path", pArrays, 1);
             char *pHotKeys = json_value(g_pRootNode, "root.hotkeys", pArrays, 1);
+            char *pStartIn = json_value(g_pRootNode, "root.startin", pArrays, 1);
 
             for(int j = 0; j < 31 && pHotKeys[j]; ++j)
             {
@@ -70,6 +71,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
                 {
                     Execute = GetAsyncKeyState(VK_MENU) & 0x8000;
                 }
+                else if(!strcmp(pToken, "SHIFT"))
+                {
+                    Execute = GetAsyncKeyState(VK_SHIFT) & 0x8000;
+                }
                 else if(*pToken >= 'A' && *pToken <= 'Z')
                 {
                     Execute = KeyboardData->vkCode == (unsigned char)*pToken;
@@ -87,7 +92,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
                 STARTUPINFO si = { sizeof(si),  0 };
                 PROCESS_INFORMATION pi = { 0 };
 
-                if(CreateProcessA(pAppPath, NULL, NULL, NULL, FALSE, CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi))
+                if(CreateProcessA(pAppPath, NULL, NULL, NULL, FALSE, CREATE_NEW_PROCESS_GROUP, NULL, pStartIn, &si, &pi))
                 {
                     CloseHandle(pi.hProcess); CloseHandle(pi.hThread);
                 }
