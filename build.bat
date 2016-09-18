@@ -21,7 +21,7 @@ DEL /Q %PDBFiles%*.ilk 2>NUL
 
 :: Resource files
 SET ResourceName=%IntermediatePath%resource.res
-rc /nologo /fo %ResourceName% res\resource.rc
+call rc /nologo /fo %ResourceName% res\resource.rc
 
 :: Compiler flags
 SET CommonCompilerFlags= /nologo /Od /Z7 /W4 /Fd%PDBFiles% /Fo%IntermediatePath% /Fe%ExePath% /Isrc\headers
