@@ -117,6 +117,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wp, LPARAM lp)
     }
     else if(Msg == WM_CLOSE || Msg == WM_DESTROY)
     {
+        DestroyMenu(g_hTrayWnd);
         g_KbdHookExit = 1;
         return 0;
     }
@@ -132,43 +133,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wp, LPARAM lp)
     }
 
     return DefWindowProcA(hWnd, Msg, wp, lp);
-}
-
-FILETIME GetLastWriteTime(char *pFileName)
-{
-    FILETIME LastWriteTime = {};
-    WIN32_FILE_ATTRIBUTE_DATA Data = { 0 };
-
-    if(GetFileAttributesEx(pFileName, GetFileExInfoStandard, &Data))
-    {
-        LastWriteTime = Data.ftLastWriteTime;
-    }
-
-    return LastWriteTime;
-}
-
-void ShowError(char *pUserMessage)
-{
-    char s[256] = { 0 };
-    sprintf_s(s, "Error: %d", GetLastError());
-    MessageBoxA(NULL, pUserMessage, s, MB_ICONEXCLAMATION | MB_OK);
-}
-
-void EnableTrayIcon(NOTIFYICONDATA *pTrayIcon, HWND hWnd, int ID)
-{
-    pTrayIcon->hWnd = hWnd;
-    pTrayIcon->uCallbackMessage = ID;
-
-    pTrayIcon->cbSize = sizeof(NOTIFYICONDATA);
-    pTrayIcon->uFlags = NIF_MESSAGE | NIF_ICON;
-
-    pTrayIcon->hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(100));
-    Shell_NotifyIcon(NIM_ADD, pTrayIcon);
-}
-
-void DisableTrayIcon(NOTIFYICONDATA *pTrayIcon)
-{
-    Shell_NotifyIcon(NIM_DELETE, pTrayIcon);
 }
 
 unsigned long __stdcall HotReload(void *)
@@ -249,8 +213,7 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
     EnableTrayIcon(&TrayIcon, hWnd, TRY_ICON_ID);
 
     // NOTE(Andrei): hotkeys hot reload
-    HANDLE hThread = CreateThread(NULL, 0, HotReload, NULL, 0, 0);
-    CloseHandle(hThread);
+    CloseHandle(CreateThread(NULL, 0, HotReload, NULL, 0, 0));
 
     while(!g_KbdHookExit)
     { 
