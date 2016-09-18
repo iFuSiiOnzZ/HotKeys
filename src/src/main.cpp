@@ -80,6 +80,11 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
                 {
                     Execute = KeyboardData->vkCode == (unsigned char)*pToken;
                 }
+                else if(*pToken >= '0' && *pToken <= '9')
+                {
+                    if(KeyboardData->vkCode >= 0x60 && KeyboardData->vkCode <= 0x69) Execute = (KeyboardData->vkCode - '0') == (unsigned char)*pToken;
+                    else Execute = KeyboardData->vkCode == (unsigned char)*pToken;
+                }
                 else 
                 {
                     Execute = 0;
@@ -93,8 +98,9 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
                 STARTUPINFO si = { sizeof(si),  0 };
                 PROCESS_INFORMATION pi = { 0 };
 
-                if(CreateProcessA(pAppPath, NULL, NULL, NULL, FALSE, CREATE_NEW_PROCESS_GROUP, NULL, pStartIn, &si, &pi))
+                if(CreateProcessA(NULL, pAppPath, NULL, NULL, FALSE, CREATE_NEW_PROCESS_GROUP, NULL, pStartIn, &si, &pi))
                 {
+                    OutputDebugString(pAppPath);
                     CloseHandle(pi.hProcess); CloseHandle(pi.hThread);
                 }
             }

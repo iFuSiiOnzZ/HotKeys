@@ -1,10 +1,10 @@
 # HotKeys
 
 Keys that can be bind <br />
-.. 1. Special Keys: CTRL, ALT, SHIFT  <br />
-.. 2. Normal Keys: A - Z  <br />
+&nbsp;&nbsp;&nbsp;&nbsp;Special Keys: CTRL, ALT, SHIFT  <br />
+&nbsp;&nbsp;&nbsp;&nbsp;Normal Keys: A - Z, 0 - 9  <br />
 
-Normal keys have to be uppercase always. HotKeys are configured through a json file (hotkeys.json) that has to be in the same directory as the application.
+Normal keys letters have to be uppercase always, letters and numbers are mutually exclusive. HotKeys are configured through a json file (hotkeys.json) that has to be in the same directory as the application.
 If json file is modified during the execution there is no need to restart the application, the json file is automatically parsed again.
 
 ## hotkeys.json
