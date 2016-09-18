@@ -317,18 +317,43 @@ void json_clear(JS_NODE *pNode)
     free(pNode);
 }
 
-void json_sanitize(JS_NODE * pNode)
+static void json_sanitize_end_of_string(JS_NODE * pNode)
 {
-    if(pNode == NULL) return;
+    if (pNode == NULL) return;
 
-    json_sanitize(pNode->Childs);
-    json_sanitize(pNode->Sibling);
+    json_sanitize_end_of_string(pNode->Childs);
+    json_sanitize_end_of_string(pNode->Sibling);
 
     int n = json_get_name_size(pNode->Size);
     int v = json_get_data_size(pNode->Size);
 
-    if(n) pNode->Name[n] = 0;
-    if(v) pNode->Value[v] = 0;
+    if (n) pNode->Name[n] = 0;
+    if (v) pNode->Value[v] = 0;
+}
+
+static void json_sanitize_special_chars(JS_NODE * pNode)
+{
+    if (pNode == NULL) return;
+
+    json_sanitize_special_chars(pNode->Childs);
+    json_sanitize_special_chars(pNode->Sibling);
+
+    char *r = pNode->Value;
+    char *w = r;
+
+    while (r && *r)
+    {
+        if (*r == '\\') ++r; // NOTE(Andrei): Should we also check the next character?
+        *w++ = *r++;
+    }
+
+    if(w) *w = 0;
+}
+
+void json_sanitize(JS_NODE * pNode)
+{
+    json_sanitize_end_of_string(pNode);
+    json_sanitize_special_chars(pNode);
 }
 
 void json_default(JS_NODE *pNode)
@@ -351,15 +376,15 @@ JS_NODE * json_root()
     return pRootNode;
 }
 
-int mystrcmp(const char* s1, const char* s2)
+int strcmp(const char* s1, const char* s2)
 {
-    while(*s1 && (*s1 == *s2)) s1++, s2++;
+    while (*s1 && (*s1 == *s2)) s1++, s2++;
     return *(const unsigned char *) s1 - *(const unsigned char *) s2;
 }
 
 JS_NODE * json_find_sibling(JS_NODE *pNode, char *pQuery)
 {
-    while(pNode && mystrcmp(pQuery, pNode->Name))
+    while(pNode && strcmp(pQuery, pNode->Name))
     {
         pNode = pNode->Sibling;
     }
