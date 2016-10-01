@@ -1,7 +1,5 @@
 
 #include <Windows.h> /* CreateProcessA, CloseHandle */
-#include <shlobj.h>  /* SHGetFolderPathA, CSIDL_MYDOCUMENTS */
-
 #include <string.h>  /* strcat_s, strlen, strtok_s*/
 
 #include <js_reader.h> /* JS_NODE, JS_TOKENIZER, json_root, json_parser, json_sanitize, json_clear */
@@ -18,10 +16,12 @@
 #define TRY_ICON_ID 1024
 #define UNUSED(x) (void)(x)
 
-static HMENU g_hTrayWnd     =     0; /* Tray menu window */
-static int g_KbdHookExit    =     0; /* Exit app controll */
-static JS_NODE *g_pRootNode =     0; /* Json hot keys bindings */
-static FILETIME g_FileWrite = { 0 }; /* Last time file was write */
+static int g_KbdHookExit           =     0; /* Exit app controll */
+static HMENU g_hTrayWnd            =     0; /* Tray menu window */
+static JS_NODE *g_pRootNode        =     0; /* Json hot keys bindings */
+
+static FILETIME g_FileWrite        = { 0 }; /* Last time file was written */
+static CRITICAL_SECTION g_Mutex    = { 0 }; /* Exclusion for json get data and load */
 
 void AddMenu(HMENU hMenu, int Id, char *WndText)
 {
@@ -40,10 +40,12 @@ void AddMenu(HMENU hMenu, int Id, char *WndText)
 
 LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
 {
-    if (action == HC_ACTION && (wp == WM_SYSKEYDOWN || wp == WM_KEYDOWN) && g_pRootNode)
+    if (action == HC_ACTION && (wp == WM_SYSKEYDOWN || wp == WM_KEYDOWN))
     {
-        KBDLLHOOKSTRUCT *KeyboardData = (KBDLLHOOKSTRUCT *)lp;
+        EnterCriticalSection(&g_Mutex);
+
         int js = json_size(g_pRootNode, "root");
+        KBDLLHOOKSTRUCT *KeyboardData = (KBDLLHOOKSTRUCT *)lp;
        
         for(int i = 0; i < js; ++i)
         {
@@ -105,6 +107,9 @@ LRESULT CALLBACK LowLevelKeyboardProc(int action, WPARAM wp, LPARAM lp)
                 }
             }
         }
+
+        LeaveCriticalSection(&g_Mutex);
+
     }
 
     return CallNextHookEx(NULL, action, wp, lp);
@@ -152,6 +157,8 @@ unsigned long __stdcall HotReload(void *)
 
         if(CompareFileTime(&LastWrite, &g_FileWrite) != 0)
         {
+            EnterCriticalSection(&g_Mutex);
+
             if(g_pRootNode) json_clear(g_pRootNode), g_pRootNode = NULL;
             if(pFileContent) free(pFileContent), pFileContent = NULL;
             
@@ -163,6 +170,8 @@ unsigned long __stdcall HotReload(void *)
 
             json_parser(g_pRootNode, &Tokenizer);
             json_sanitize(g_pRootNode);
+
+            LeaveCriticalSection(&g_Mutex);
         }
     }
 
@@ -219,6 +228,7 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
     EnableTrayIcon(&TrayIcon, hWnd, TRY_ICON_ID);
 
     // NOTE(Andrei): hotkeys hot reload
+    InitializeCriticalSection(&g_Mutex);
     CloseHandle(CreateThread(NULL, 0, HotReload, NULL, 0, 0));
 
     while(!g_KbdHookExit)
@@ -230,14 +240,15 @@ int WINAPI WinMain(HINSTANCE hActualInst, HINSTANCE hPrevInst, LPSTR cmdLine, in
         }
 
         // NOTE(Andrei): Don't waste CPU time
-        Sleep(20);
+        Sleep(10);
     }
 
+    DestroyWindow(hWnd);
     DisableTrayIcon(&TrayIcon);
 
-    DestroyWindow(hWnd);
     UnhookWindowsHookEx(KbdHook);
-    UnregisterClass(CLASS_NAME, hActualInst);
+    DeleteCriticalSection(&g_Mutex);
 
+    UnregisterClass(CLASS_NAME, hActualInst);
     return 0;
 }
